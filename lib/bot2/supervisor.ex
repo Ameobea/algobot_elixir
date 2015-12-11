@@ -6,14 +6,5 @@ defmodule BOT2.Supervisor do
   """
 
   use Supervisor
-
-  def start_link do
-    Supervisor.start_link(__MODULE__, :ok)
-  end
-
-  def init(:ok) do
-    children = [
-      
-    ]
-  end
+  #This is discontinued for now until/if I figure out how to do it.  
 end

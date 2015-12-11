@@ -10,6 +10,6 @@ defmodule BOT2.Tick_generator do
   """
 
   def sendTick(symbol, timestamp, data) do
-    
+    {ask, bid} = data
   end
 end
