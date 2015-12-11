@@ -1,6 +1,14 @@
 # BOT2
 
-**TODO: Add description**
+This is the second iteration of the attempts to create a Forex trading bot, this time being created in Elixir.  
+
+## Bot Architecture
+
+The bot is, as before, focused around multiple modules which receive tick data, process it, and pass the various calculations around to each other in order to determine the best times to trade.  
+
+Ticks originate from either a live source or from archive via backtests, are parsed and sent off to various workers that the bot supports, which in turn pass their calculations off to other workers and store them in a database.  
+
+See the [previous repository](https://github.com/ameobea/algobot) for additional documentation while this one is populated.  
 
 ## Installation
 
