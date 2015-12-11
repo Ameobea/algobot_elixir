@@ -9,13 +9,23 @@ defmodule BOT2.Backtest do
   that corresponds to the timestamp.  
   """
   def initBacktest(symbol, time) do
-    {:ok, index} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol |> String.upcase}/index.csv"
-      |> Path.relative |> File.read
-    {:ok, i} = index |> String.split("\n") |> List.delete_at(0) |> splitIndex(time, symbol)
-    i = i |> trunc
-    {:ok, block} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol |> String.upcase}/#{symbol |> String.upcase}_#{i}.csv"
-      |> Path.relative |> File.read
-    {:ok, ticks} = block |> String.split("\n") |> List.delete_at(0) |> splitBlock(time)
+    {:ok, index} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol
+      |> String.upcase}/index.csv"
+      |> Path.relative
+      |> File.read
+    {:ok, i} = index
+      |> String.split("\n")
+      |> List.delete_at(0)
+      |> splitIndex(time, symbol)
+    i = trunc(i)
+    {:ok, block} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol 
+      |> String.upcase}/#{String.upcase(symbol)}_#{i}.csv"
+      |> Path.relative
+      |> File.read
+    {:ok, ticks} = block
+      |> String.split("\n")
+      |> List.delete_at(0)
+      |> splitBlock(time)
     ticks
   end
 
@@ -27,7 +37,9 @@ defmodule BOT2.Backtest do
   in between sending ticks.  
   """
   def fastBacktest(symbol, start_time, delay) do
-    symbol |> initBacktest(start_time) |> doFastBacktest(symbol, delay)
+    symbol
+      |> initBacktest(start_time)
+      |> doFastBacktest(symbol, delay)
   end
 
   @doc """
@@ -38,7 +50,9 @@ defmodule BOT2.Backtest do
   when recorded, they will be broadcast .2 seconds apart to the tick_generator.
   """
   def liveBacktest(symbol, start_time) do
-    symbol |> initBacktest(start_time) |> doLiveBacktest(symbol, start_time)
+    symbol
+      |> initBacktest(start_time)
+      |> doLiveBacktest(symbol, start_time)
   end
 
   @doc """
@@ -49,9 +63,14 @@ defmodule BOT2.Backtest do
     if input |> length == 1 do
       {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
     else
-      [i, startTime, endTime] = input |> hd |> String.split(",") |> mapListToFloat
+      [i, startTime, endTime] = input
+        |> hd
+        |> String.split(",")
+        |> mapListToFloat
       unless (startTime < time) && (endTime > time) do
-        input |> List.delete_at(0) |> splitIndex(time, symbol)
+        input
+          |> List.delete_at(0)
+          |> splitIndex(time, symbol)
       else
         {:ok, i}
       end
@@ -63,9 +82,14 @@ defmodule BOT2.Backtest do
   the given timestamp
   """
   def splitBlock(block, time) do
-    [timestamp, ask, bid, vol1, vol2] = block |> hd |> String.split(",") |> mapListToFloat
+    [timestamp, ask, bid, vol1, vol2] = block
+      |> hd
+      |> String.split(",")
+      |> mapListToFloat
     unless timestamp > time do
-      block |> List.delete_at(0) |> splitBlock(time)
+      block
+        |> List.delete_at(0)
+        |> splitBlock(time)
     else
       {:ok, block}
     end
@@ -77,7 +101,7 @@ defmodule BOT2.Backtest do
   def mapListToFloat(inList) do
     inList |> Enum.map(
       fn(element) ->
-        {parsed, ""} = element |> Float.parse
+        {parsed, ""} = Float.parse(element)
         parsed
       end
     )
@@ -87,8 +111,13 @@ defmodule BOT2.Backtest do
   Executes the fast backtest and sends the ticks to the other modules of the bot
   """
   def doFastBacktest(block, symbol, delay) do
-    [timestamp, ask, bid, vol1, vol2] = block |> hd |> String.split(",") |> mapListToFloat
-    [timestamp, ask, bid, vol1, vol2] |> inspect |> IO.puts
+    [timestamp, ask, bid, vol1, vol2] = block
+      |> hd
+      |> String.split(",")
+      |> mapListToFloat
+    [timestamp, ask, bid, vol1, vol2]
+      |> inspect
+      |> IO.puts
     # Broadcast the tick to the other modules here
     :timer.sleep(delay)
     block |> List.delete_at(0) |> doFastBacktest(symbol, delay)
@@ -102,7 +131,7 @@ defmodule BOT2.Backtest do
     [timestamp, ask, bid, vol1, vol2] = block |> hd |> String.split(",") |> mapListToFloat
     [timestamp, ask, bid, vol1, vol2] |> inspect |> IO.puts
     # Broadcast the tick to the other modules here
-    {parsed, garbage} = (timestamp - last)*1000 |> Float.round(0) |> inspect |> Integer.parse
+    {parsed, _} = (timestamp - last)*1000 |> Float.round(0) |> inspect |> Integer.parse
     parsed |> :timer.sleep
     :timer.sleep(50)
     block |> List.delete_at(0) |> doLiveBacktest(symbol, timestamp)
