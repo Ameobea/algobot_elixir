@@ -1,0 +1,3 @@
+BOT2.Backtest.fastBacktest("eurusd",1399092584.5,50)
+
+BOT2.Backtest.liveBacktest("eurusd",1399092584.5)

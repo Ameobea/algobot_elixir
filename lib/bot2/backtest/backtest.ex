@@ -35,11 +35,14 @@ defmodule BOT2.Backtest do
 
   The delay is in milliseconds and defines how long the backtest will wait
   in between sending ticks.  
+
+  This function returns the pid of the backtest server.  To stop a backtest
+  in progress, send it the message :terminate
   """
   def fastBacktest(symbol, start_time, delay) do
-    symbol
+    block = symbol
       |> initBacktest(start_time)
-      |> doFastBacktest(symbol, delay)
+      spawn_link(fn -> doFastBacktest(block, symbol, delay, true) end)
   end
 
   @doc """
@@ -48,11 +51,14 @@ defmodule BOT2.Backtest do
 
   This means that if two ticks were .2 seconds apart
   when recorded, they will be broadcast .2 seconds apart to the tick_generator.
+
+  This function returns the pid of the backtest server.  To stop a backtest
+  in progress, send it the message :terminate
   """
   def liveBacktest(symbol, start_time) do
-    symbol
+    block = symbol
       |> initBacktest(start_time)
-      |> doLiveBacktest(symbol, start_time)
+      spawn_link(fn -> doLiveBacktest(block, symbol, start_time, true) end)
   end
 
   @doc """
@@ -110,42 +116,48 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the fast backtest and sends the ticks to the other modules of the bot
   """
-  def doFastBacktest(block, symbol, delay) do
-    [timestamp, ask, bid, vol1, vol2] = block
-      |> hd
-      |> String.split(",")
-      |> mapListToFloat
-    [timestamp, ask, bid, vol1, vol2]
-      |> inspect
-      |> IO.puts
-    BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
-    :timer.sleep(delay)
-    block
-      |> List.delete_at(0)
-      |> doFastBacktest(symbol, delay)
-    # TODO: Switch to next block if the end of the current block is reached
+  def doFastBacktest(block, symbol, delay, live) do
+    if live do
+      [timestamp, ask, bid, vol1, vol2] = block
+        |> hd
+        |> String.split(",")
+        |> mapListToFloat
+      BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
+      :timer.sleep(delay)
+      block
+        |> List.delete_at(0)
+        |> doFastBacktest(symbol, delay, live)
+      # TODO: Switch to next block if the end of the current block is reached
+    end
+    receive do
+      :terminate ->
+        live = false
+    end
   end
 
   @doc """
   Executes the live backtest and sends the ticks to the other modules of the bot
   """
-  def doLiveBacktest(block, symbol, last) do
-    [timestamp, ask, bid, _ask, _bid] = block
-      |> hd
-      |> String.split(",")
-      |> mapListToFloat
-    [timestamp, ask, bid, _ask, _bid]
-      |> inspect
-      |> IO.puts
-    BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
-    {parsed, _} = (timestamp - last)*1000
-      |> Float.round(0)
-      |> inspect
-      |> Integer.parse
-    parsed |> :timer.sleep
-    block
-      |> List.delete_at(0)
-      |> doLiveBacktest(symbol, timestamp)
-    # TODO: Switch to next block if the end of the current block is reached
+  def doLiveBacktest(block, symbol, last, live) do
+    if live do
+      [timestamp, ask, bid, _ask, _bid] = block
+        |> hd
+        |> String.split(",")
+        |> mapListToFloat
+      BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
+      {parsed, _} = (timestamp - last)*1000
+        |> Float.round(0)
+        |> inspect
+        |> Integer.parse
+      parsed |> :timer.sleep
+      block
+        |> List.delete_at(0)
+        |> doLiveBacktest(symbol, timestamp, live)
+      # TODO: Switch to next block if the end of the current block is reached
+    end
+    receive do
+      :terminate ->
+        live = false
+    end
   end
 end
