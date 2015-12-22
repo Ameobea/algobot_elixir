@@ -40,9 +40,10 @@ defmodule BOT2.Backtest do
   in progress, send it the message :terminate
   """
   def fastBacktest(symbol, start_time, delay) do
+    conn = DB_util.db_connect
     block = symbol
       |> initBacktest(start_time)
-      spawn_link(fn -> doFastBacktest(block, symbol, delay, true) end)
+      spawn_link(fn -> doFastBacktest(block, symbol, delay, true, conn) end)
   end
 
   @doc """
@@ -56,9 +57,10 @@ defmodule BOT2.Backtest do
   in progress, send it the message :terminate
   """
   def liveBacktest(symbol, start_time) do
+    conn = DB_util.db_connect
     block = symbol
       |> initBacktest(start_time)
-      spawn_link(fn -> doLiveBacktest(block, symbol, start_time, true) end)
+      spawn_link(fn -> doLiveBacktest(block, symbol, start_time, true, conn) end)
   end
 
   @doc """
@@ -116,48 +118,48 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the fast backtest and sends the ticks to the other modules of the bot
   """
-  def doFastBacktest(block, symbol, delay, live) do
-    if live do
-      [timestamp, ask, bid, vol1, vol2] = block
-        |> hd
-        |> String.split(",")
-        |> mapListToFloat
-      BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
-      :timer.sleep(delay)
-      block
-        |> List.delete_at(0)
-        |> doFastBacktest(symbol, delay, live)
-      # TODO: Switch to next block if the end of the current block is reached
-    end
+  def doFastBacktest(block, symbol, delay, live, conn) do
     receive do
       :terminate ->
         live = false
+    after
+      0 -> if live do
+        [timestamp, ask, bid, vol1, vol2] = block
+          |> hd
+          |> String.split(",")
+          |> mapListToFloat
+        BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid}, conn)
+        :timer.sleep(delay)
+        [_ | tail] = block
+        tail |> doFastBacktest(symbol, delay, live, conn)
+        # TODO: Switch to next block if the end of the current block is reached
+      end
     end
   end
 
   @doc """
   Executes the live backtest and sends the ticks to the other modules of the bot
   """
-  def doLiveBacktest(block, symbol, last, live) do
-    if live do
-      [timestamp, ask, bid, _ask, _bid] = block
-        |> hd
-        |> String.split(",")
-        |> mapListToFloat
-      BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid})
-      {parsed, _} = (timestamp - last)*1000
-        |> Float.round(0)
-        |> inspect
-        |> Integer.parse
-      parsed |> :timer.sleep
-      block
-        |> List.delete_at(0)
-        |> doLiveBacktest(symbol, timestamp, live)
-      # TODO: Switch to next block if the end of the current block is reached
-    end
+  def doLiveBacktest(block, symbol, last, live, conn) do
     receive do
       :terminate ->
         live = false
+    after
+      0 -> if live do
+        [timestamp, ask, bid, _ask, _bid] = block
+          |> hd
+          |> String.split(",")
+          |> mapListToFloat
+        BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid}, conn)
+        {parsed, _} = (timestamp - last)*1000
+          |> Float.round(0)
+          |> inspect
+          |> Integer.parse
+        parsed |> :timer.sleep
+        [_ | tail] = block
+        tail |> doLiveBacktest(symbol, timestamp, live, conn)
+        # TODO: Switch to next block if the end of the current block is reached
+      end
     end
   end
 end

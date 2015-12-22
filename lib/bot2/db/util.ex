@@ -7,4 +7,8 @@ defmodule DB_util do
     )
     conn
   end
+
+  def wipe_database(conn) do
+    Redix.command(conn, ["FLUSHALL"])
+  end
 end
