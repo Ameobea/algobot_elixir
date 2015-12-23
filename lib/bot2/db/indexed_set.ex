@@ -12,10 +12,33 @@ defmodule Iset do
     index
   end
 
+  def splitArrays(merged) do
+    [first | rest] = merged
+    splitArrays(rest, 1, [first], [])
+  end
+
+  def splitArrays(merged, toggle, split0, split1) do
+    [first | rest] = merged
+    if toggle do
+      split1.concat([first])
+      splitArrays(rest, 0, split0, split1)
+    else
+      split0.concat([first])
+      splitArrays(rest, 1, split0, split1)
+    end
+  end
+
+  def splitArrays([], _, indexes, values) do
+    [indexes, values]
+  end
+
   def rangeByElement(conn, setName, column, value1, value2) do
-    {:ok, raw} = Redix.command(conn, ["ZRANGEBYSCORE", "#{setName}_#{column}", value1, value2, "WITHSCORES"])
-    Enum.map_reduce(raw, 0, fn(x, i) -> end) # TODO
-    # [indexes, values]
+    {:ok, merged} = Redix.command(conn, ["ZRANGEBYSCORE", "#{setName}_#{column}", value1, value2, "WITHSCORES"])
+    if merged != [] do
+      splitArrays(merged)
+    else
+      [[],[]]
+    end
   end
 
   def rangeByIndex(conn, setName, column, index1, index2) do

@@ -12,6 +12,7 @@ defmodule BOT2.Tick_generator do
   def sendTick(symbol, timestamp, data, conn) do
     {ask, bid} = data
     storeTick(symbol, timestamp, ask, bid, conn)
+    spawn_link(fn -> BOT2.MA_calc.calcMAs(conn, symbol, timestamp, bid) end)
   end
 
   def storeTick(symbol, timestamp, ask, bid, conn) do
