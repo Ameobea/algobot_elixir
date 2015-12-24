@@ -5,7 +5,7 @@ defmodule BOT2.MA_calc do
   how long the price remains at that level until the next tick.  
   """
   def calcMAs(conn, symbol, timestamp) do
-    maIndex = Iset.append(conn, "sma_#{symbol}", "timestamps", timestamp) #|> inspect |> IO.puts#Float.parse
+    maIndex = Iset.append(conn, "sma_#{symbol}", "timestamps", timestamp)
     calcMA(conn, timestamp, symbol, 30, maIndex)
     calcMA(conn, timestamp, symbol, 120, maIndex)
     calcMA(conn, timestamp, symbol, 600, maIndex)
@@ -15,36 +15,32 @@ defmodule BOT2.MA_calc do
     [indexes, timestamps] = Iset.rangeByElement(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-range, timestamp)
     if indexes != [] do
       prices = Iset.rangeByIndex(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes), List.last(indexes))
-      # prices |> inspect |> IO.puts
-        #|> inspect |> IO.puts#Enum.map(fn(x) -> Float.parse(x) end)
-        # The following lines retreive the timestamp and price of the tick before the first
-        # tick in the set.  For reduced average accuracy but increased speed, leave out
-        # the next four lines.  Above line can be modified to save a query.
-      # prevTimestamp = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "timestamps", indexes[0]-1)
-      # prevPrice = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", indexes[0]-1)
-      # prices = prevPrice.concat(prices)
-      # timestamps = prevTimestamp.concat(timestamps)
-      average = doCalculation(prices
-      |> Enum.map(fn(x) ->
-        Float.parse(x)
-          |> Tuple.to_list
-          |> hd end),
-      timestamps
-      |> Enum.map(fn(x) ->
-        x
-          |> Integer.parse
-          |> Tuple.to_list
-          |> hd end), 0,
-      (timestamps
-        |> List.last
-        |> Float.parse
-        |> Tuple.to_list
-        |> hd) - (timestamps
-          |> hd
+
+      prices = prices |> Enum.map(fn(x) ->
+        x |> Float.parse |> elem(0)
+      end)
+      timestamps = timestamps |> Enum.map(fn(x) ->
+        x |> Float.parse |> elem(0)
+      end)
+      indexes = indexes |> Enum.map(fn(x) ->
+        x |> Integer.parse |> elem(0)
+      end)
+
+      if Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && hd(indexes) != 0 do
+        prevTimestamp = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "timestamps", hd(indexes)-1)
+        prevPrice = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes)-1)
           |> Float.parse
-          |> Tuple.to_list
-          |> hd))
-      ## Holy shit this language
+          |> elem(0)
+
+        totalTime = range
+        prevTime = range - (range - ((timestamps |> List.last) - (timestamps |> hd)))
+        total = prevPrice * (prevTime / totalTime)
+      else
+        total = 0
+        totalTime = (timestamps |> List.last) - (timestamps |> hd)
+      end
+
+      average = doCalculation(prices, timestamps, total, totalTime)
       Iset.add(conn, "sma_#{symbol}", "data_#{range}", average, maIndex)
       #TODO: Send average to necessary places
     else
