@@ -25,11 +25,10 @@ defmodule Iset do
       merged
         |> Enum.chunk(2)
         |> List.zip
-        |> Enum.map(fn(x) ->
-          x |> Tuple.to_list
-        end)
+        |> Enum.map(&Tuple.to_list(&1))
+        |> List.to_tuple
     else
-      [[],[]]
+      {[],[]}
     end
   end
 

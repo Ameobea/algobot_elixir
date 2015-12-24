@@ -4,7 +4,7 @@ defmodule BOT2Test do
 
   setup_all backtest do
     DB_util.db_connect |> DB_util.wipe_database
-    backtest = BOT2.Backtest.fastBacktest("eurusd",1399092584.5,5)
+    backtest = BOT2.Backtest.fastBacktest("eurusd", 1399092584.5, 5)
     {:ok, backtest: backtest}
     # backtest = BOT2.Backtest.liveBacktest("eurusd",1399092584.5)
   end

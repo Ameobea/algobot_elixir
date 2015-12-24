@@ -11,8 +11,16 @@ defmodule BOT2.MA_calc do
     calcMA(conn, timestamp, symbol, 600, maIndex)
   end
 
+  def exactOk(indexes) do
+    if Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && hd(indexes) != 0 do
+      true
+    else
+      false
+    end
+  end
+
   def calcMA(conn, timestamp, symbol, range, maIndex) do
-    [indexes, timestamps] = Iset.rangeByElement(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-range, timestamp)
+    {indexes, timestamps} = Iset.rangeByElement(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-range, timestamp)
     if indexes != [] do
       prices = Iset.rangeByIndex(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes), List.last(indexes))
 
@@ -26,25 +34,26 @@ defmodule BOT2.MA_calc do
         x |> Integer.parse |> elem(0)
       end)
 
-      if Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && hd(indexes) != 0 do
+      if exactOk(indexes) do
         prevTimestamp = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "timestamps", hd(indexes)-1)
         prevPrice = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes)-1)
           |> Float.parse
           |> elem(0)
 
         totalTime = range
-        prevTime = range - (range - ((timestamps |> List.last) - (timestamps |> hd)))
+        tickRange = ((List.last(timestamps)) - (List.first(timestamps)))
+        prevTime = range - (range - tickRange)
         total = prevPrice * (prevTime / totalTime)
       else
         total = 0
-        totalTime = (timestamps |> List.last) - (timestamps |> hd)
+        totalTime = (List.last(timestamps)) - (List.first(timestamps))
       end
 
       average = doCalculation(prices, timestamps, total, totalTime)
       Iset.add(conn, "sma_#{symbol}", "data_#{range}", average, maIndex)
       #TODO: Send average to necessary places
     else
-
+      Iset.add(conn, "sma_#{symbol}", "data_#{range}", nil, maIndex)
     end
   end
 
@@ -52,14 +61,25 @@ defmodule BOT2.MA_calc do
     if length(prices) > 1 do
       [firstPrice | prices] = prices
       [firstTimestamp | timestamps] = timestamps
-      total = total + (firstPrice * ((hd(timestamps) - firstTimestamp) / totalTime))
+
+      tickLength = List.first(timestamps) - firstTimestamp
+      total = total + (firstPrice * (tickLength / totalTime))
+
       if length(timestamps) > 1 do
         doCalculation(prices, timestamps, total, totalTime)
       else
         total
       end
     else
-      hd(prices)
+      if total == 0 do
+        List.first(prices)
+      else
+        firstPrice = List.first(prices)
+        firstTimestamp = List.first(timestamps)
+
+        tickLength = List.first(timestamps) - firstTimestamp
+        total + (firstPrice * (tickLength / totalTime))
+      end
     end
   end
 end
