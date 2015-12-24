@@ -45,7 +45,8 @@ defmodule BOT2.MA_calc do
           |> Tuple.to_list
           |> hd))
       ## Holy shit this language
-      Iset.add(conn, "sma_#{symbol}", "averages", average, maIndex)
+      Iset.add(conn, "sma_#{symbol}", "data_#{range}", average, maIndex)
+      #TODO: Send average to necessary places
     else
 
     end
