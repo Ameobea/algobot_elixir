@@ -18,7 +18,7 @@ defmodule BOT2.Tick_generator do
   def storeTick(symbol, timestamp, ask, bid, conn) do
     setName = "ticks_#{symbol}"
     len = conn |> Iset.append(setName, "timestamps", timestamp)
-    conn |> Iset.add(setName, "asks", len, ask)
-    conn |> Iset.add(setName, "bids", len, bid)
+    conn |> Iset.add(setName, "asks", ask, len)
+    conn |> Iset.add(setName, "bids", ask, len)
   end
 end
