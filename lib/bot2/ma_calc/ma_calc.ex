@@ -2,7 +2,7 @@ defmodule BOT2.MA_calc do
   @moduledoc """
   Calculates the average price between two points in time.  Due to the fact that
   ticks arrive at irregular intervals, ticks are weighted depending on
-  how long the price remains at that level until the next tick.  
+  how long the price remains at that level until the next tick.
   """
   def calcMAs(conn, symbol, timestamp) do
     maIndex = Iset.append(conn, "sma_#{symbol}", "timestamps", timestamp)

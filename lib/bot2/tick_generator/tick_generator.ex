@@ -1,15 +1,15 @@
 defmodule BOT2.Tick_generator do
   @moduledoc """
-  The starting point of data flow for the bot.  
+  The starting point of data flow for the bot.
 
   This module parses the streaming quote data for various symbols and
-  feeds them into the other modules of the bot.  
+  feeds them into the other modules of the bot.
 
   The tick data can either originate from a live tick source or from
-  stored data via a backtest.  
+  stored data via a backtest.
   """
 
-  def sendTick(symbol, timestamp, data, conn) do
+  def send_tick(symbol, timestamp, data, conn) do
     {ask, bid} = data
     storeTick(symbol, timestamp, ask, bid, conn)
     spawn_link(fn -> BOT2.MA_calc.calcMAs(conn, symbol, timestamp) end)

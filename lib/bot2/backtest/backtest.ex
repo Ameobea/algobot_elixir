@@ -1,31 +1,31 @@
 defmodule BOT2.Backtest do
   @moduledoc """
   This module reads historical price data from files and
-  transmits them to the tick_generator.  
+  transmits them to the tick_generator.
 
   """
   @doc """
   This is code used in both of the types of backtests.  It reads in the index and block file
-  that corresponds to the timestamp.  
+  that corresponds to the timestamp.
   """
-  def initBacktest(symbol, time) do
-    {:ok, index} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol
-      |> String.upcase}/index.csv"
+  def init_backtest(symbol, time) do
+    capital_sym = String.upcase symbol
+    root = Application.get_env(:bot2, :rootdir)
+    {:ok, index} = "/#{root}tick_data/#{capital_sym}/index.csv"
       |> Path.relative
       |> File.read
     {:ok, i} = index
       |> String.split("\n")
       |> List.delete_at(0)
-      |> splitIndex(time, symbol)
+      |> split_index(time, symbol)
     i = trunc(i)
-    {:ok, block} = "/#{Application.get_env(:bot2, :rootdir)}tick_data/#{symbol 
-      |> String.upcase}/#{String.upcase(symbol)}_#{i}.csv"
+    {:ok, block} = "/#{root}tick_data/#{capital_sym}/#{capital_sym}_#{i}.csv"
       |> Path.relative
       |> File.read
     {:ok, ticks} = block
       |> String.split("\n")
       |> List.delete_at(0)
-      |> splitBlock(time)
+      |> split_block(time)
     ticks
   end
 
@@ -34,7 +34,7 @@ defmodule BOT2.Backtest do
   of the time between them when they were actually recorded.
 
   The delay is in milliseconds and defines how long the backtest will wait
-  in between sending ticks.  
+  in between sending ticks.
 
   This function returns the pid of the backtest server.  To stop a backtest
   in progress, send it the message :terminate
@@ -42,13 +42,13 @@ defmodule BOT2.Backtest do
   def fastBacktest(symbol, start_time, delay) do
     conn = DB_util.db_connect
     block = symbol
-      |> initBacktest(start_time)
+      |> init_backtest(start_time)
       spawn_link(fn -> doFastBacktest(block, symbol, delay, true, conn) end)
   end
 
   @doc """
   A live backtest reads and passes on ticks at a rate according to the actual
-  speed at which they were received.  
+  speed at which they were received.
 
   This means that if two ticks were .2 seconds apart
   when recorded, they will be broadcast .2 seconds apart to the tick_generator.
@@ -59,26 +59,23 @@ defmodule BOT2.Backtest do
   def liveBacktest(symbol, start_time) do
     conn = DB_util.db_connect
     block = symbol
-      |> initBacktest(start_time)
-      spawn_link(fn -> doLiveBacktest(block, symbol, start_time, true, conn) end)
+      |> init_backtest(start_time)
+      spawn_link(fn -> do_live_backtest(block, symbol, start_time, true, conn) end)
   end
 
   @doc """
   Splits up the data from the index file and returns the index of
   the block file which contains the data for the given timestamp
   """
-  def splitIndex(input, time, symbol) do
-    if input |> length == 1 do
+  def split_index([ first_input | rest ], time, symbol) do
+    if length(rest) == 0 do
       {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
     else
-      [i, startTime, endTime] = input
-        |> hd
+      [i, startTime, endTime] = first_input
         |> String.split(",")
-        |> mapListToFloat
+        |> map_list_to_float
       unless (startTime < time) && (endTime > time) do
-        input
-          |> List.delete_at(0)
-          |> splitIndex(time, symbol)
+        split_index(rest, time, symbol)
       else
         {:ok, i}
       end
@@ -89,25 +86,22 @@ defmodule BOT2.Backtest do
   Splits up the text from a block file and returns only the elements that are after
   the given timestamp
   """
-  def splitBlock(block, time) do
-    [timestamp, ask, bid, vol1, vol2] = block
-      |> hd
+  def split_block([ first_block | rest ], time) do
+    [timestamp, ask, bid, vol1, vol2] = first_block
       |> String.split(",")
-      |> mapListToFloat
+      |> map_list_to_float
     unless timestamp > time do
-      block
-        |> List.delete_at(0)
-        |> splitBlock(time)
+      split_block(rest, time)
     else
-      {:ok, block}
+      {:ok, [ first_block | rest ]}
     end
   end
 
   @doc """
   Converts all elements of a list to floats
   """
-  def mapListToFloat(inList) do
-    inList |> Enum.map(
+  def map_list_to_float(list) do
+    Enum.map(list,
       fn(element) ->
         {parsed, ""} = Float.parse(element)
         parsed
@@ -127,8 +121,8 @@ defmodule BOT2.Backtest do
         [timestamp, ask, bid, vol1, vol2] = block
           |> hd
           |> String.split(",")
-          |> mapListToFloat
-        BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid}, conn)
+          |> map_list_to_float
+        BOT2.Tick_generator.send_tick(symbol, timestamp, {ask, bid}, conn)
         :timer.sleep(delay)
         [_ | tail] = block
         tail |> doFastBacktest(symbol, delay, live, conn)
@@ -140,7 +134,7 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the live backtest and sends the ticks to the other modules of the bot
   """
-  def doLiveBacktest(block, symbol, last, live, conn) do
+  def do_live_backtest(block, symbol, last, live, conn) do
     receive do
       :terminate ->
         live = false
@@ -149,15 +143,15 @@ defmodule BOT2.Backtest do
         [timestamp, ask, bid, _ask, _bid] = block
           |> hd
           |> String.split(",")
-          |> mapListToFloat
-        BOT2.Tick_generator.sendTick(symbol, timestamp, {ask, bid}, conn)
+          |> map_list_to_float
+        BOT2.Tick_generator.send_tick(symbol, timestamp, {ask, bid}, conn)
         {parsed, _} = (timestamp - last)*1000
           |> Float.round(0)
           |> inspect
           |> Integer.parse
         parsed |> :timer.sleep
         [_ | tail] = block
-        tail |> doLiveBacktest(symbol, timestamp, live, conn)
+        tail |> do_live_backtest(symbol, timestamp, live, conn)
         # TODO: Switch to next block if the end of the current block is reached
       end
     end

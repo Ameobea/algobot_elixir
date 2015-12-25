@@ -6,5 +6,5 @@ defmodule BOT2.Supervisor do
   """
 
   use Supervisor
-  #This is discontinued for now until/if I figure out how to do it.  
+  #This is discontinued for now until/if I figure out how to do it.
 end
