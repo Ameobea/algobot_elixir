@@ -1,4 +1,4 @@
-defmodule BOT2.Tick_generator do
+defmodule BOT2.TickGenerator do
   @moduledoc """
   The starting point of data flow for the bot.
 

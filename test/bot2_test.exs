@@ -3,10 +3,10 @@ defmodule BOT2Test do
   doctest BOT2
 
   setup_all backtest do
-    DB_util.db_connect |> DB_util.wipe_database
-    backtest = BOT2.Backtest.fastBacktest("eurusd", 1399092584.5, 5)
+    DB.Utils.db_connect |> DB.Utils.wipe_database
+    backtest = BOT2.Backtest.fast_backtest("eurusd", 1399092584.5, 5)
     {:ok, backtest: backtest}
-    # backtest = BOT2.Backtest.liveBacktest("eurusd",1399092584.5)
+    # backtest = BOT2.Backtest.live_backtest("eurusd",1399092584.5)
   end
 
   test "tick data index file reading" do

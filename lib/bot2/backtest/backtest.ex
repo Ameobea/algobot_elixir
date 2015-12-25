@@ -39,11 +39,10 @@ defmodule BOT2.Backtest do
   This function returns the pid of the backtest server.  To stop a backtest
   in progress, send it the message :terminate
   """
-  def fastBacktest(symbol, start_time, delay) do
-    conn = DB_util.db_connect
-    block = symbol
-      |> init_backtest(start_time)
-      spawn_link(fn -> doFastBacktest(block, symbol, delay, true, conn) end)
+  def fast_backtest(symbol, start_time, delay) do
+    conn = DB.Utils.db_connect
+    block = init_backtest(symbol, start_time)
+    spawn_link(fn -> do_fast_backtest(block, symbol, delay, true, conn) end)
   end
 
   @doc """
@@ -56,29 +55,28 @@ defmodule BOT2.Backtest do
   This function returns the pid of the backtest server.  To stop a backtest
   in progress, send it the message :terminate
   """
-  def liveBacktest(symbol, start_time) do
-    conn = DB_util.db_connect
-    block = symbol
-      |> init_backtest(start_time)
-      spawn_link(fn -> do_live_backtest(block, symbol, start_time, true, conn) end)
+  def live_backtest(symbol, start_time) do
+    conn = DB.Utils.db_connect
+    block = init_backtest(symbol, start_time)
+    spawn_link(fn -> do_live_backtest(block, symbol, start_time, true, conn) end)
   end
 
   @doc """
   Splits up the data from the index file and returns the index of
   the block file which contains the data for the given timestamp
   """
-  def split_index([ first_input | rest ], time, symbol) do
-    if length(rest) == 0 do
-      {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
+  def split_index([ _input ], _time, _symbol) do
+    {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
+  end
+
+  def split_index([ input | rest ], time, symbol) do
+    [i, start_time, endTime] = input
+      |> String.split(",")
+      |> map_list_to_float
+    unless (start_time < time) && (endTime > time) do
+      split_index(rest, time, symbol)
     else
-      [i, startTime, endTime] = first_input
-        |> String.split(",")
-        |> map_list_to_float
-      unless (startTime < time) && (endTime > time) do
-        split_index(rest, time, symbol)
-      else
-        {:ok, i}
-      end
+      {:ok, i}
     end
   end
 
@@ -86,14 +84,14 @@ defmodule BOT2.Backtest do
   Splits up the text from a block file and returns only the elements that are after
   the given timestamp
   """
-  def split_block([ first_block | rest ], time) do
-    [timestamp, ask, bid, vol1, vol2] = first_block
+  def split_block([ block | rest ], time) do
+    [timestamp, ask, bid, vol1, vol2] = block
       |> String.split(",")
       |> map_list_to_float
     unless timestamp > time do
       split_block(rest, time)
     else
-      {:ok, [ first_block | rest ]}
+      {:ok, [ block | rest ]}
     end
   end
 
@@ -112,20 +110,18 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the fast backtest and sends the ticks to the other modules of the bot
   """
-  def doFastBacktest(block, symbol, delay, live, conn) do
+  def do_fast_backtest([block | rest], symbol, delay, live, conn) do
     receive do
       :terminate ->
         live = false
     after
       0 -> if live do
         [timestamp, ask, bid, vol1, vol2] = block
-          |> hd
           |> String.split(",")
           |> map_list_to_float
-        BOT2.Tick_generator.send_tick(symbol, timestamp, {ask, bid}, conn)
+        BOT2.TickGenerator.send_tick(symbol, timestamp, {ask, bid}, conn)
         :timer.sleep(delay)
-        [_ | tail] = block
-        tail |> doFastBacktest(symbol, delay, live, conn)
+        do_fast_backtest(rest, symbol, delay, live, conn)
         # TODO: Switch to next block if the end of the current block is reached
       end
     end
@@ -134,24 +130,21 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the live backtest and sends the ticks to the other modules of the bot
   """
-  def do_live_backtest(block, symbol, last, live, conn) do
+  def do_live_backtest([block | rest], symbol, last, live, conn) do
     receive do
       :terminate ->
         live = false
     after
       0 -> if live do
         [timestamp, ask, bid, _ask, _bid] = block
-          |> hd
           |> String.split(",")
           |> map_list_to_float
-        BOT2.Tick_generator.send_tick(symbol, timestamp, {ask, bid}, conn)
-        {parsed, _} = (timestamp - last)*1000
+        BOT2.TickGenerator.send_tick(symbol, timestamp, {ask, bid}, conn)
+        time_to_sleep = (timestamp - last)*1000
           |> Float.round(0)
-          |> inspect
-          |> Integer.parse
-        parsed |> :timer.sleep
-        [_ | tail] = block
-        tail |> do_live_backtest(symbol, timestamp, live, conn)
+          |> trunc
+        :timer.sleep time_to_sleep
+        do_live_backtest(rest, symbol, timestamp, live, conn)
         # TODO: Switch to next block if the end of the current block is reached
       end
     end
