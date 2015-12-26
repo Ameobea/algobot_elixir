@@ -59,11 +59,11 @@ defmodule BOT2.Backtest do
   the block file which contains the data for the given timestamp
   """
   def get_which_file_for_symbol_on_time(raw_csv, time, symbol) do
-    i = raw_csv
+    index_row = raw_csv
       |> CSV.parse_with_float_values
       |> Enum.find &( (&1["start"] < time) && (&1["end"] > time))
-    if i do
-      {:ok, trunc i}
+    if index_row do
+      {:ok, trunc index_row["block"]}
     else
       {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
     end
