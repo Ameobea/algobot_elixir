@@ -10,6 +10,7 @@ defmodule BOT2.Backtest do
   """
   def find_ticks(symbol, time) do
     capital_sym = String.upcase symbol
+    "tick_data/#{capital_sym}/index.csv" |> read_file
     {:ok, index_file} = read_file "tick_data/#{capital_sym}/index.csv"
     {:ok, i} = get_which_file_for_symbol_on_time(index_file, time, symbol)
     {:ok, tick_data} = read_file "tick_data/#{capital_sym}/#{capital_sym}_#{i}.csv"
@@ -18,7 +19,7 @@ defmodule BOT2.Backtest do
 
   defp read_file(relative_filename) do
     Application.get_env(:bot2, :rootdir)
-      |> Path.join relative_filename
+      |> Path.join(relative_filename)
       |> File.read
   end
 

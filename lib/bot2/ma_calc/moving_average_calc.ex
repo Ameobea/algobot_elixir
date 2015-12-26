@@ -11,8 +11,7 @@ defmodule BOT2.MovingAverageCalc do
     calc_one(conn, timestamp, symbol, 600, ma_index)
   end
 
-  # casey what does this method name even mean?
-  def exact_ok?(indexes) do
+  def accurate_average_possible?(indexes) do
     Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && hd(indexes) != 0
   end
 
@@ -31,7 +30,7 @@ defmodule BOT2.MovingAverageCalc do
         {num, ""} = Integer.parse(x); num
       end)
 
-      if exact_ok?(indexes) do
+      if accurate_average_possible?(indexes) do
         # prev_timestamp = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "timestamps", hd(indexes)-1)
         {prev_price, ""} = Float.parse Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes)-1)
 
@@ -52,9 +51,8 @@ defmodule BOT2.MovingAverageCalc do
     end
   end
 
-  # jaden code: talk to casey to figure out what this shit is
   def do_calculation(prices, timestamps, total, total_time) do
-    if length(prices) > 1 do
+    if length(prices) > 1 && total == 0 do
       [firstPrice | prices] = prices
       [firstTimestamp | timestamps] = timestamps
 
@@ -67,15 +65,7 @@ defmodule BOT2.MovingAverageCalc do
         total
       end
     else
-      if total == 0 do
-        List.first(prices)
-      else
-        firstPrice = List.first(prices)
-        firstTimestamp = List.first(timestamps)
-
-        tickLength = List.first(timestamps) - firstTimestamp
-        total + (firstPrice * (tickLength / total_time))
-      end
+      List.first(prices)
     end
   end
 end
