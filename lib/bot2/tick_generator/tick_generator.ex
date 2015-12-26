@@ -11,7 +11,7 @@ defmodule BOT2.TickGenerator do
 
   def send_tick(symbol, tick, conn) do
     store_tick(symbol, tick, conn)
-    spawn_link(fn -> BOT2.MA_calc.calcMAs(conn, symbol, tick["timestamp"]) end)
+    spawn_link(fn -> BOT2.MovingAverageCalc.calc_all(conn, symbol, tick["timestamp"]) end)
   end
 
   def store_tick(symbol, tick, conn) do
