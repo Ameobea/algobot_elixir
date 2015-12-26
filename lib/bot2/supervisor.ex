@@ -5,6 +5,6 @@ defmodule BOT2.Supervisor do
   keeping some basic stuff from a tutorial thing.
   """
 
-  use Supervisor
-  #This is discontinued for now until/if I figure out how to do it.  
+  # use Supervisor
+  #This is discontinued for now until/if I figure out how to do it.
 end

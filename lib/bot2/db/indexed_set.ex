@@ -5,35 +5,31 @@ defmodule Iset do
 
   # Redix.command(conn, [arg1, arg2, arg3, ...])
   # Redix.command(conn, ~w(arg1 arg2 arg3 ...))
-  def get(conn, setName, column, index) do
-    {:ok, element} = Redix.command(conn, ["ZSCORE", "#{setName}_#{column}", index])
+  def get(conn, iset_name, column, index) do
+    {:ok, element} = Redix.command(conn, ["ZSCORE", "#{iset_name}_#{column}", index])
     element
   end
 
-  def getIndex(conn, setName, column, value) do
-    {:ok, index} = Redix.command(conn, ["ZRANGEBYSCORE", "#{setName}_#{column}", value, value])
-    if length(index) > 1 do
-      index |> hd
-    else
-      nil
-    end
+  def get_index(conn, iset_name, column, value) do
+    {:ok, index} = Redix.command(conn, ["ZRANGEBYSCORE", "#{iset_name}_#{column}", value, value])
+    List.first index
   end
 
-  def rangeByElement(conn, setName, column, value1, value2) do
-    {:ok, merged} = Redix.command(conn, ["ZRANGEBYSCORE", "#{setName}_#{column}", value1, value2, "WITHSCORES"])
-    if merged != [] do
+  def range_by_element(conn, iset_name, column, value1, value2) do
+    {:ok, merged} = Redix.command(conn, ["ZRANGEBYSCORE", "#{iset_name}_#{column}", value1, value2, "WITHSCORES"])
+    if length(merged) > 1 do
       merged
         |> Enum.chunk(2)
         |> List.zip
-        |> Enum.map(&Tuple.to_list(&1))
+        |> Enum.map(&Tuple.to_list/1)
         |> List.to_tuple
     else
       {[],[]}
     end
   end
 
-  def rangeByIndex(conn, setName, column, index1, index2) do
-    {:ok, merged} = Redix.command(conn, ["ZRANGE", "#{setName}_#{column}", index1, index2, "WITHSCORES"])
+  def range_by_index(conn, iset_name, column, index1, index2) do
+    {:ok, merged} = Redix.command(conn, ["ZRANGE", "#{iset_name}_#{column}", index1, index2, "WITHSCORES"])
     merged
       |> Enum.chunk(2)
       |> List.zip
@@ -41,19 +37,19 @@ defmodule Iset do
       |> Tuple.to_list
   end
 
-  def add(conn, setName, column, value, index) do
-    {:ok, _} = Redix.command(conn, ["ZADD", "#{setName}_#{column}", value, index])
+  def add(conn, iset_name, column, value, index) do
+    {:ok, _} = Redix.command(conn, ["ZADD", "#{iset_name}_#{column}", value, index])
     :ok
   end
 
-  def append(conn, setName, column, value) do
-    index = getLength(conn, setName, column)
-    {:ok, _} = Redix.command(conn, ["ZADD", "#{setName}_#{column}", value, index])
+  def append(conn, iset_name, column, value) do
+    index = get_length(conn, iset_name, column)
+    {:ok, _} = Redix.command(conn, ["ZADD", "#{iset_name}_#{column}", value, index])
     index
   end
 
-  def getLength(conn, setName, column) do
-    {:ok, setLength} = Redix.command(conn, ["ZCARD", "#{setName}_#{column}"])
-    setLength
+  def get_length(conn, iset_name, column) do
+    {:ok, set_length} = Redix.command(conn, ["ZCARD", "#{iset_name}_#{column}"])
+    set_length
   end
 end

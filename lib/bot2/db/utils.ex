@@ -1,4 +1,4 @@
-defmodule DB_util do
+defmodule DB.Utils do
   def db_connect do
     {:ok, conn} = Redix.start_link(
       host: Application.get_env(:bot2, :redis_hostname),
