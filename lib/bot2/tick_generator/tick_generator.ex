@@ -9,16 +9,15 @@ defmodule BOT2.TickGenerator do
   stored data via a backtest.
   """
 
-  def send_tick(symbol, timestamp, data, conn) do
-    {ask, bid} = data
-    storeTick(symbol, timestamp, ask, bid, conn)
-    spawn_link(fn -> BOT2.MA_calc.calcMAs(conn, symbol, timestamp) end)
+  def send_tick(symbol, tick, conn) do
+    store_tick(symbol, tick, conn)
+    spawn_link(fn -> BOT2.MA_calc.calcMAs(conn, symbol, tick["timestamp"]) end)
   end
 
-  def storeTick(symbol, timestamp, ask, bid, conn) do
-    setName = "ticks_#{symbol}"
-    len = conn |> Iset.append(setName, "timestamps", timestamp)
-    conn |> Iset.add(setName, "asks", ask, len)
-    conn |> Iset.add(setName, "bids", ask, len)
+  def store_tick(symbol, tick, conn) do
+    iset_name = "ticks_#{symbol}"
+    len = Iset.append(conn, iset_name, "timestamps", tick["timestamp"])
+    Iset.add(conn, iset_name, "asks", tick["ask"], len)
+    Iset.add(conn, iset_name, "bids", tick["ask"], len)
   end
 end

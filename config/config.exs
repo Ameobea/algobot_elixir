@@ -1,6 +1,6 @@
 use Mix.Config
 
-config(:bot2, rootdir: "/home/ubuntu/bot2/")
+config(:bot2, rootdir: System.cwd)
 
 # Determines whether or not the two extra database queries to retreive
 # the tick before a specified range of ticks to produce a more accurate average.
