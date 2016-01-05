@@ -14,7 +14,7 @@ defmodule BOT2.Backtest do
     {:ok, index_file} = read_file "tick_data/#{capital_sym}/index.csv"
     {:ok, i} = get_which_file_for_symbol_on_time(index_file, time, symbol)
     {:ok, tick_data} = read_file "tick_data/#{capital_sym}/#{capital_sym}_#{i}.csv"
-    get_all_ticks_before_time(tick_data, time)
+    get_all_ticks_after_time(tick_data, time)
   end
 
   defp read_file(relative_filename) do
@@ -61,10 +61,13 @@ defmodule BOT2.Backtest do
   """
   def get_which_file_for_symbol_on_time(raw_csv, time, symbol) do
     index_row = raw_csv
-      |> CSV.parse_with_float_values
-      |> Enum.find &( (&1["start"] < time) && (&1["end"] > time))
+      |> CSV.parse_with_float_values(&( (&1["start"] < time) && (&1["end"] > time)))
+      |> List.first
     if index_row do
-      {:ok, trunc index_row["block"]}
+      block = index_row["block"]
+        |> trunc
+        |> round
+      {:ok, block}
     else
       {:error, "The timestamp given was not found in the index for symbol #{symbol}"}
     end
@@ -74,8 +77,8 @@ defmodule BOT2.Backtest do
   Splits up the text from a block file and returns only the elements that are after
   the given timestamp
   """
-  def get_all_ticks_before_time(raw_csv, time) do
-    CSV.parse_with_float_values raw_csv, &(&1["timestamp"] < time)
+  def get_all_ticks_after_time(raw_csv, time) do
+    CSV.parse_with_float_values raw_csv, &(&1["timestamp"] > time)
   end
 
   @doc """
