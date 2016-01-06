@@ -6,11 +6,11 @@ defmodule CSV do
   def parse_with_float_values(full_csv, fun \\ fn _ -> true end) do
     [ headers | rows ] = String.split String.strip(full_csv), "\n"
     headers = String.split headers, ","
-    do_parse_while(rows, headers, fun)
+    parse_after_met(rows, headers, fun)
       |> Enum.map(fn(row) -> parse_row(headers, row) end)
   end
 
-  defp do_parse_while([], _headers, _fun) do
+  defp parse_after_met([], _headers, _fun) do
     []
   end
 
@@ -19,12 +19,12 @@ defmodule CSV do
   fun.  It then returns the sublist delinated by the first element
   for which fun returns true and all following elements.
   """
-  defp do_parse_while([ head | tail ], headers, fun) do
+  defp parse_after_met([ head | tail ], headers, fun) do
     row = parse_row(headers, head)
     if fun.(row) do
-      tail
+      [ head | tail ]
     else
-      do_parse_while(tail, headers, fun)
+      parse_after_met(tail, headers, fun)
     end
   end
 

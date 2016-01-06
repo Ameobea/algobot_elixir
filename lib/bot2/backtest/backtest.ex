@@ -65,7 +65,6 @@ defmodule BOT2.Backtest do
       |> List.first
     if index_row do
       block = index_row["block"]
-        |> trunc
         |> round
       {:ok, block}
     else
