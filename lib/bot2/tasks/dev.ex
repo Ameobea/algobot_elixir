@@ -6,8 +6,8 @@ defmodule Mix.Tasks.Dev do
 
   def run(_) do
     DB.Utils.db_connect |> DB.Utils.wipe_database
-    backtest = BOT2.Backtest.fast_backtest("eurusd", 1399092584.5, 5)
+    backtest = BOT2.Backtest.fast_backtest("eurusd", 1399092584.5, 100)
     backtest |> inspect |> IO.puts
-    :timer.sleep(1000)
+    :timer.sleep(200000)
   end
 end

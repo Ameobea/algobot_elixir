@@ -12,31 +12,30 @@ defmodule BOT2.MovingAverageCalc do
   end
 
   def accurate_average_possible?(indexes) do
-    Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && hd(indexes) != 0
+    Application.get_env(:bot2, :accurate_averages) && length(indexes) > 1 && List.first(indexes) != 0
   end
 
-  def calc_one(conn, timestamp, symbol, range, ma_index) do
-    {indexes, timestamps} = Iset.range_by_element(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-range, timestamp)
+  def calc_one(conn, timestamp, symbol, period, ma_index) do
+    {indexes, timestamps} = Iset.range_by_element(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-period, timestamp)
     if indexes != [] do
-      prices = Iset.range_by_index(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes), List.last(indexes))
+      prices = Iset.range_by_index(conn, "ticks_#{String.downcase(symbol)}", "bids", List.first(indexes), List.last(indexes))
 
       prices = prices |> Enum.map(fn(x) ->
-        {num, ""} = Float.parse(x); num
+        Float.parse(x) |> elem(0)
       end)
       timestamps = Enum.map(timestamps, fn(x) ->
-        {num, ""} = Float.parse(x); num
+        Float.parse(x) |> elem(0)
       end)
       indexes = Enum.map(indexes, fn(x) ->
-        {num, ""} = Integer.parse(x); num
+        Integer.parse(x) |> elem(0)
       end)
 
       if accurate_average_possible?(indexes) do
-        # prev_timestamp = Iset.get(conn, "ticks_#{String.downcase(symbol)}", "timestamps", hd(indexes)-1)
-        {prev_price, ""} = Float.parse Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", hd(indexes)-1)
+        {prev_price, ""} = Float.parse Iset.get(conn, "ticks_#{String.downcase(symbol)}", "bids", List.first(indexes)-1)
 
-        total_time = range
+        total_time = period
         tick_range = List.last(timestamps) - List.first(timestamps)
-        prev_time = range - (range - tick_range)
+        prev_time = period - (period - tick_range)
         total = prev_price * (prev_time / total_time)
       else
         total = 0
@@ -44,10 +43,10 @@ defmodule BOT2.MovingAverageCalc do
       end
 
       average = do_calculation(prices, timestamps, total, total_time)
-      Iset.add(conn, "sma_#{symbol}", "data_#{range}", average, ma_index)
-      #TODO: Send average to necessary places
+      Iset.add(conn, "sma_#{symbol}", "data_#{period}", average, ma_index)
+      BOT2.MomentumCalc.calc_all(conn, symbol, timestamp, period, ma_index)
     else
-      Iset.add(conn, "sma_#{symbol}", "data_#{range}", nil, ma_index)
+      Iset.add(conn, "sma_#{symbol}", "data_#{period}", nil, ma_index)
     end
   end
 
