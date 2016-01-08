@@ -9,10 +9,11 @@ defmodule BOT2.MomentumCalc do
   @doc """
   Initiates calculations for 
   """
-  def calc_all(conn, symbol, timestamp, period, ma_index) do
-    calc_momentum(conn, symbol, timestamp, period, 30, ma_index)
-    calc_momentum(conn, symbol, timestamp, period, 120, ma_index)
-    calc_momentum(conn, symbol, timestamp, period, 600, ma_index)
+  def calc_all(conn, symbol, timestamp, average_period, ma_index) do
+    momentum_index = Iset.append(conn, "momentum_#{symbol}", "timestamps", timestamp)
+    calc_momentum(conn, symbol, timestamp, average_period, 30, ma_index, momentum_index)
+    calc_momentum(conn, symbol, timestamp, average_period, 120, ma_index, momentum_index)
+    calc_momentum(conn, symbol, timestamp, average_period, 600, ma_index, momentum_index)
   end
 
   @doc """
@@ -48,20 +49,23 @@ defmodule BOT2.MomentumCalc do
 
   @doc """
   Finds the average rate of change between the price at the given timestamp
-  and the price [range] seconds ago as given by the average with period [period].
+  and the price [range] seconds ago as given by the average with period [average_period].
   """
-  def calc_momentum(conn, symbol, timestamp, period, range, ma_index) do
+  def calc_momentum(conn, symbol, timestamp, average_period, range, ma_index, momentum_index) do
     {index, past_timestamp} = get_closest_to(conn, "sma_#{symbol}", "timestamps", timestamp-range)
     unless is_nil(index) do
-      past_price = Iset.get(conn, "sma_#{symbol}", "data_#{period}", round(index))
+      past_price = Iset.get(conn, "sma_#{symbol}", "data_#{average_period}", round(index))
         |> Float.parse
         |> elem(0)
-      cur_price = Iset.get(conn, "sma_#{symbol}", "data_#{period}", ma_index)
+      cur_price = Iset.get(conn, "sma_#{symbol}", "data_#{average_period}", ma_index)
         |> Float.parse
         |> elem(0)
-      #[timestamp, period, range, cur_price, past_price] |> inspect|> IO.puts
+      #[timestamp, average_period, range, cur_price, past_price] |> inspect|> IO.puts
       slope = (cur_price - past_price)/(timestamp - past_timestamp) * 10000000
       slope |> IO.puts
+      Iset.add(conn, "momentum_#{symbol}_#{average_period}", "data_#{range}", slope, momentum_index)
+    else
+      Iset.add(conn, "momentum_#{symbol}_#{average_period}", "data_#{range}", nil, momentum_index)
     end
   end
 end
