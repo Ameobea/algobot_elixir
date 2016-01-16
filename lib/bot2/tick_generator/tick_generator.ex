@@ -1,4 +1,4 @@
-defmodule BOT2.TickGenerator do
+defmodule BOT2.Tick_generator do
   @moduledoc """
   The starting point of data flow for the bot.
 
@@ -9,9 +9,16 @@ defmodule BOT2.TickGenerator do
   stored data via a backtest.
   """
 
-  def send_tick(symbol, tick, conn) do
-    store_tick(symbol, tick, conn)
-    spawn_link(fn -> BOT2.MovingAverageCalc.calc_all(conn, symbol, tick["timestamp"]) end)
+  def start() do
+    receive do
+      {symbol, tick} ->
+        send_tick(symbol, tick)
+    end
+  end
+
+  def send_tick(symbol, tick) do
+    store_tick(symbol, tick, DB.Utils.db_connect)
+    spawn_link(fn -> BOT2.MovingAverageCalc.calc_all(symbol, tick["timestamp"]) end)
   end
 
   def store_tick(symbol, tick, conn) do

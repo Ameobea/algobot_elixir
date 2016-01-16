@@ -36,7 +36,9 @@ defmodule BOT2.Backtest do
   def fast_backtest(symbol, start_time, delay) do
     conn = DB.Utils.db_connect
     ticks = find_ticks(symbol, start_time)
-    spawn_link(fn -> do_fast_backtest(ticks, symbol, delay, conn) end)
+    tick_sender = BOT2.Tick_generator.start
+    tick_sender |> inspect |> IO.puts
+    spawn_link(fn -> do_fast_backtest(ticks, symbol, delay, conn, tick_sender) end)
   end
 
   @doc """
@@ -52,7 +54,8 @@ defmodule BOT2.Backtest do
   def live_backtest(symbol, start_time) do
     conn = DB.Utils.db_connect
     ticks = find_ticks(symbol, start_time)
-    spawn_link(fn -> do_live_backtest(ticks, symbol, start_time, conn) end)
+    tick_sender = BOT2.Tick_generator.start
+    spawn_link(fn -> do_live_backtest(ticks, symbol, start_time, conn, tick_sender) end)
   end
 
   @doc """
@@ -83,31 +86,31 @@ defmodule BOT2.Backtest do
   @doc """
   Executes the fast backtest and sends the ticks to the other modules of the bot
   """
-  def do_fast_backtest([], _symbol, _last, _conn) do
+  def do_fast_backtest([], _symbol, _last, _conn, tick_sender) do
     nil
   end
 
-  def do_fast_backtest([tick | remaining_ticks], symbol, delay, conn) do
-    BOT2.TickGenerator.send_tick(symbol, tick, conn)
+  def do_fast_backtest([tick | remaining_ticks], symbol, delay, conn, tick_sender) do
+    send(tick_sender, {symbol, tick})
     :timer.sleep(delay)
-    do_fast_backtest(remaining_ticks, symbol, delay, conn)
+    do_fast_backtest(remaining_ticks, symbol, delay, conn, tick_sender)
     # TODO: Switch to next block if the end of the current block is reached
   end
 
   @doc """
   Executes the live backtest and sends the ticks to the other modules of the bot
   """
-  def do_live_backtest([], _symbol, _last, _conn) do
+  def do_live_backtest([], _symbol, _last, _conn, tick_sender) do
     nil
   end
 
-  def do_live_backtest([tick | remaining_ticks], symbol, prev_timestamp, conn) do
-    BOT2.TickGenerator.send_tick(symbol, tick, conn)
+  def do_live_backtest([tick | remaining_ticks], symbol, prev_timestamp, conn, tick_sender) do
+    send(tick_sender, {symbol, tick})
     time_to_sleep = (tick["timestamp"] - prev_timestamp)*1000
       |> Float.round(0)
       |> trunc
     :timer.sleep time_to_sleep
-    do_live_backtest(remaining_ticks, symbol, tick["timestamp"], conn)
+    do_live_backtest(remaining_ticks, symbol, tick["timestamp"], conn, tick_sender)
     # TODO: Switch to next block if the end of the current block is reached
   end
 end

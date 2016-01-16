@@ -4,11 +4,12 @@ defmodule BOT2.MovingAverageCalc do
   ticks arrive at irregular intervals, ticks are weighted depending on
   how long the price remains at that level until the next tick.
   """
-  def calc_all(conn, symbol, timestamp) do
+  def calc_all(symbol, timestamp) do
+    conn = DB.Utils.db_connect
     ma_index = Iset.append(conn, "sma_#{symbol}", "timestamps", timestamp)
-    calc_one(conn, timestamp, symbol, 30, ma_index)
-    calc_one(conn, timestamp, symbol, 120, ma_index)
-    calc_one(conn, timestamp, symbol, 600, ma_index)
+    spawn_link(fn -> calc_one(conn, timestamp, symbol, 30, ma_index) end)
+    spawn_link(fn -> calc_one(DB.Utils.db_connect, timestamp, symbol, 120, ma_index) end)
+    spawn_link(fn -> calc_one(DB.Utils.db_connect, timestamp, symbol, 600, ma_index) end)
   end
 
   def accurate_average_possible?(indexes) do
@@ -18,7 +19,7 @@ defmodule BOT2.MovingAverageCalc do
   def calc_one(conn, timestamp, symbol, period, ma_index) do
     {indexes, timestamps} = Iset.range_by_element(conn, "ticks_#{String.downcase(symbol)}", "timestamps", timestamp-period, timestamp)
     if indexes != [] do
-      prices = Iset.range_by_index(conn, "ticks_#{String.downcase(symbol)}", "bids", List.first(indexes), List.last(indexes))
+      {_, prices} = Iset.range_by_index(conn, "ticks_#{String.downcase(symbol)}", "bids", List.first(indexes), List.last(indexes))
 
       prices = prices |> Enum.map(fn(x) ->
         Float.parse(x) |> elem(0)
@@ -44,7 +45,7 @@ defmodule BOT2.MovingAverageCalc do
 
       average = do_calculation(prices, timestamps, total, total_time)
       Iset.add(conn, "sma_#{symbol}", "data_#{period}", average, ma_index)
-      BOT2.MomentumCalc.calc_all(conn, symbol, timestamp, period, ma_index)
+      BOT2.MomentumCalc.calc_all(symbol, timestamp, period, ma_index)
     else
       Iset.add(conn, "sma_#{symbol}", "data_#{period}", nil, ma_index)
     end

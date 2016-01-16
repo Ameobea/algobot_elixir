@@ -42,13 +42,17 @@ defmodule Iset do
   of all matched elements and the second list contains all matched elements.
   """
   def range_by_index(conn, iset_name, column, index1, index2) do
-    {:ok, merged} = Redix.command(conn, ["ZRANGE", "#{iset_name}_#{column}", index1, index2, "WITHSCORES"])
+    {:ok, indexes} = Redix.command(conn, ["ZRANGEBYLEX", "#{iset_name}_#{column}", "[" <> index1, "[" <> index2])
+    {:ok, rank1} = Redix.command(conn, ["ZRANK", "#{iset_name}_#{column}", index1])
+    {:ok, rank2} = Redix.command(conn, ["ZRANK", "#{iset_name}_#{column}", index2])
+    {:ok, merged} = Redix.command(conn, ["ZRANGE", "#{iset_name}_#{column}", rank1, rank2, "WITHSCORES"])
     if length(merged) > 1 do
-      merged
+      elements = merged
         |> Enum.chunk(2)
         |> List.zip
         |> List.last
         |> Tuple.to_list
+      {indexes, elements}
     else
       {[],[]}
     end
@@ -62,12 +66,18 @@ defmodule Iset do
     :ok
   end
 
+  defp read_file(relative_filename) do
+    Application.get_env(:bot2, :rootdir)
+      |> Path.join(relative_filename)
+      |> File.read
+  end
+
   @doc """
   Adds an element on to the end of a column.
   """
   def append(conn, iset_name, column, value) do
-    index = get_length(conn, iset_name, column)
-    {:ok, _} = Redix.command(conn, ["ZADD", "#{iset_name}_#{column}", value, index])
+    {:ok, script} = read_file("lib/bot2/db/append.lua")
+    {:ok, index} = Redix.command(conn, ["EVAL", "#{script}", "1", "#{iset_name}_#{column}", "#{value}"])
     index
   end
 

@@ -8,10 +8,4 @@ defmodule BOT2 do
   provisioning computing power where necessary.
   """
 
-  use Application
-
-  def start(_type, _args) do
-
-  end
-
 end

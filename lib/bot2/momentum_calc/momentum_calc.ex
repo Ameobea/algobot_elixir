@@ -9,11 +9,12 @@ defmodule BOT2.MomentumCalc do
   @doc """
   Initiates calculations for 
   """
-  def calc_all(conn, symbol, timestamp, average_period, ma_index) do
+  def calc_all(symbol, timestamp, average_period, ma_index) do
+    conn = DB.Utils.db_connect
     momentum_index = Iset.append(conn, "momentum_#{symbol}", "timestamps", timestamp)
     calc_momentum(conn, symbol, timestamp, average_period, 30, ma_index, momentum_index)
-    calc_momentum(conn, symbol, timestamp, average_period, 120, ma_index, momentum_index)
-    calc_momentum(conn, symbol, timestamp, average_period, 600, ma_index, momentum_index)
+    calc_momentum(DB.Utils.db_connect, symbol, timestamp, average_period, 120, ma_index, momentum_index)
+    calc_momentum(DB.Utils.db_connect, symbol, timestamp, average_period, 600, ma_index, momentum_index)
   end
 
   @doc """
